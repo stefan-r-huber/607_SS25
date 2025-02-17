@@ -1,0 +1,149 @@
+---
+title: "Movie Ratings Analysis"
+author: "Stefan Huber"
+date: "February 11, 2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Objective
+Creating a normalized SQLite database for movie ratings, loading the data into R, handling missing data, and standardizing ratings.
+
+##Populate
+```{r create-database}
+library(RSQLite)
+library(tidyverse)
+
+con <- dbConnect(RSQLite::SQLite(), "movie_ratings.db")
+
+dbExecute(con, "
+CREATE TABLE IF NOT EXISTS Movies (
+    movie_id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    release_year INTEGER
+)")
+
+dbExecute(con, "
+CREATE TABLE IF NOT EXISTS Friends (
+    friend_id TEXT PRIMARY KEY,
+    friend_name TEXT NOT NULL
+)")
+
+dbExecute(con, "
+CREATE TABLE IF NOT EXISTS Ratings (
+    rating_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    friend_id TEXT,
+    movie_id INTEGER,
+    rating INTEGER,
+    FOREIGN KEY (friend_id) REFERENCES Friends(friend_id),
+    FOREIGN KEY (movie_id) REFERENCES Movies(movie_id)
+)")
+
+movies_data <- data.frame(
+    movie_id = 1:6,
+    title = c("Dune", "Spider-Man: No Way Home", "The Batman", 
+              "Top Gun: Maverick", "Avatar: The Way of Water", "Oppenheimer"),
+    release_year = c(2021, 2021, 2022, 2022, 2022, 2023)
+)
+
+dbWriteTable(con, "Movies", movies_data, append = TRUE, row.names = FALSE)
+
+friends_data <- data.frame(
+    friend_id = c("F1", "F2", "F3", "F4", "F5"),
+    friend_name = c("Friend A", "Friend B", "Friend C", "Friend D", "Friend E")
+)
+
+dbWriteTable(con, "Friends", friends_data, append = TRUE, row.names = FALSE)
+
+ratings_data <- data.frame(
+    friend_id = c("F1", "F1", "F1", "F1", "F1", "F2", "F2", "F2", "F2", "F2", "F3", "F3", "F3", "F3", "F3", "F4", "F4", "F4", "F4", "F5", "F5", "F5", "F5", "F5"),
+    movie_id = c(1, 2, 3, 4, 6, 1, 2, 3, 5, 6, 1, 3, 4, 5, 6, 2, 3, 4, 5, 1, 2, 4, 5, 6),
+    rating = c(4, 5, 3, 4, 5, 5, 4, 4, 5, 4, 3, 5, 4, 4, 5, 5, 4, 5, 5, 4, 4, 3, 4, 5)
+)
+
+dbWriteTable(con, "Ratings", ratings_data, append = TRUE, row.names = FALSE)
+```
+
+##Load
+```{r load-data}
+ratings_df <- dbGetQuery(con, "SELECT * FROM Ratings")
+movies_df <- dbGetQuery(con, "SELECT * FROM Movies")
+
+head(ratings_df)
+head(movies_df)
+```
+
+##Matrix
+```{r handle-missing-data}
+ratings_wide <- dbGetQuery(con, "
+    SELECT f.friend_id, m.title,
+           CASE WHEN r.rating IS NULL THEN 'NA' ELSE CAST(r.rating AS TEXT) END as rating
+    FROM Friends f
+    CROSS JOIN Movies m
+    LEFT JOIN Ratings r ON f.friend_id = r.friend_id AND m.movie_id = r.movie_id
+    ORDER BY f.friend_id, m.movie_id
+")
+
+ratings_matrix <- ratings_wide %>%
+    pivot_wider(names_from = title, values_from = rating) %>%
+    as.data.frame()
+
+ratings_matrix
+```
+
+##Standardize
+```{r standardize-ratings}
+ratings_standardized <- dbGetQuery(con, "
+    WITH MovieStats AS (
+        SELECT movie_id,
+               AVG(CAST(rating AS FLOAT)) as mean_rating,
+               SQRT(AVG(CAST(rating AS FLOAT) * CAST(rating AS FLOAT)) - 
+                    AVG(CAST(rating AS FLOAT)) * AVG(CAST(rating AS FLOAT))) as std_dev
+        FROM Ratings
+        GROUP BY movie_id
+    )
+    SELECT r.friend_id,
+           m.title,
+           r.rating as original_rating,
+           ROUND(CAST((r.rating - ms.mean_rating) / CASE WHEN ms.std_dev = 0 THEN 1 ELSE ms.std_dev END AS FLOAT), 2) as z_score
+    FROM Ratings r
+    JOIN Movies m ON r.movie_id = m.movie_id
+    JOIN MovieStats ms ON r.movie_id = ms.movie_id
+    ORDER BY r.friend_id, m.movie_id
+")
+
+ratings_standardized
+```
+
+##Summary
+```{r summary-statistics}
+rating_summary <- dbGetQuery(con, "
+    SELECT m.title,
+           COUNT(r.rating) as num_ratings,
+           ROUND(AVG(CAST(r.rating AS FLOAT)), 2) as avg_rating,
+           MIN(r.rating) as min_rating,
+           MAX(r.rating) as max_rating
+    FROM Movies m
+    LEFT JOIN Ratings r ON m.movie_id = r.movie_id
+    GROUP BY m.title
+    ORDER BY m.movie_id
+")
+
+rating_summary
+```
+
+##Conclusion
+
+- Creating a normalized database
+- Handling missing data
+- Performing statistical analysis
+- SQLite db used for reproducibility
+
+```{r close-connection, include=FALSE}
+# Close the database connection
+dbDisconnect(con)
+```
+
