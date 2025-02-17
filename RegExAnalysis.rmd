@@ -1,0 +1,105 @@
+---
+title: 'RegEx Analysis'
+author: 'Stefan Huber'
+output: html_document
+---
+
+### 1. Using the 173 majors listed in fivethirtyeight.com’s College Majors 
+### dataset, provide code that identifies the majors that contain either 
+### "DATA" or "STATISTICS
+
+```{r}
+library(dplyr)
+
+majors <- read.csv('https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv')
+
+data_statistics_majors <- majors %>% 
+  filter(grepl('DATA', Major, ignore.case = TRUE) | 
+         grepl('STATISTICS', Major, ignore.case = TRUE))
+
+print(data_statistics_majors)
+```
+
+### 2 Write code that transforms the data below:
+
+### [1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+
+### [5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+
+### [9] "elderberry"   "lime"         "lychee"       "mulberry"    
+
+### [13] "olive"        "salal berry"
+
+### Into a format like this:
+
+### c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", 
+### "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee",
+### "mulberry", "olive", "salal berry")
+
+```{r}
+fruits <- c('bell pepper', 'bilberry', 'blackberry', 'blood orange',
+            'blueberry', 'cantaloupe', 'chili pepper', 'cloudberry',
+            'elderberry', 'lime', 'lychee', 'mulberry', 'olive', 'salal berry')
+
+print(fruits)
+```
+
+### The two exercises below are taken from R for Data Science, 
+### 14.3.5.1 in the on-line version:
+
+### 3 Describe, in words, what these expressions will match:
+
+### (.)\1\1
+### "(.)(.)\\2\\1"
+### (..)\1
+### "(.).\\1.\\1"
+### "(.)(.)(.).*\\3\\2\\1"
+
+### (.)\1\1
+### Three of the same character in sequence
+### I.e. 'aaa'
+
+### "(.)(.)\\2\\1"
+### Two letters that repeat in reverse
+### I.e. 'abba' (like the band)
+
+### (..)\1
+### Two letters that repeat in sequence
+### I.e. 'abab'
+
+### "(.).\\1.\\1"
+### A letter -> any letter -> the first letter -> any letter > first letter
+### I.e. 'aXaYa'
+
+### "(.)(.)(.).*\\3\\2\\1"
+### Three letters -> anything -> those three letters backwards
+### I.e. 'abcXYZcba'
+
+### 4 Construct regular expressions to match words that:
+
+### Start and end with the same character.
+### Contain a repeated pair of letters
+### (e.g. "church" contains "ch" repeated twice.)
+### Contain one letter repeated in at least three places
+### (e.g. "eleven" contains three "e"s.)
+
+### Words that start and end with the same letter:
+```{r}
+# The ^ means start, $ means end
+regex1 <- '^(.).*\1$'
+print(regex1)  # Try it with words like 'anna' or 'eye'
+```
+
+### Words with a repeated pair of letters:
+```{r}
+# Looking for any two letters that show up twice
+regex2 <- '(..).*\1'
+print(regex2)  # Works with words like 'murmur'
+```
+
+### Words with one letter showing up at least three times:
+```{r}
+# Finding a letter that appears three times anywhere
+regex3 <- '.*([A-Za-z]).*\1.*\1.*'
+print(regex3)  # Try it with 'banana'
+```
