@@ -1,0 +1,113 @@
+---
+title: "Super Bowl Ads Analysis"
+author: "Stefan Huber"
+date: "February 11, 2025"
+output: html_document
+---
+
+##Overview
+
+Analysis based on the data set provided by FiveThirtyEight regarding Super Bowl ads. Data set includes information about the brands, categories, and characteristics of ads aired. Objective is to clean and transform the data set by selecting columns with meaningful names and highlighting potential areas for analysis.
+
+Source Data: https://github.com/fivethirtyeight/superbowl-ads/blob/main/superbowl-ads.csv
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load necessary libraries
+library(tidyverse)
+```
+
+##Loading
+
+Loading data directly from GitHub into R. Selecting columns of importance for further analysis. Lastly, renaming them for readability and relevance.
+
+```{r load_data}
+url <- "https://raw.githubusercontent.com/fivethirtyeight/superbowl-ads/main/superbowl-ads.csv"
+superbowl_ads <- read_csv(url)
+
+head(superbowl_ads)
+```
+
+##Cleaning
+
+Selecting columns relevant for analysis (brand, category, year, humor, patriotism, and likeability of the ads).
+
+```{r clean_data}
+ads_cleaned <- superbowl_ads %>%
+  select(brand, year, funny, patriotic, celebrity, animals, use_sex) %>%
+  rename(
+    Brand = brand,
+    Year = year,
+    Funny = funny,
+    Patriotic = patriotic,
+    Celebrity = celebrity,
+    Animals = animals,
+    Sex_Appeal = use_sex
+  )
+
+head(ads_cleaned)
+
+str(ads_cleaned)
+```
+
+##Analysis
+
+Plotting data to identify any possible trends or correlation between points.
+
+```{r exploratory_analysis}
+summary(ads_cleaned)
+
+ggplot(ads_cleaned, aes(x = Brand)) +
+  geom_bar() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Super Bowl Ads by Brand",
+       x = "Brand",
+       y = "Count")
+
+ads_cleaned %>%
+  group_by(Year) %>%
+  summarise(
+    Funny_Ratio = mean(Funny),
+    Patriotic_Ratio = mean(Patriotic),
+    Celebrity_Ratio = mean(Celebrity)
+  ) %>%
+  pivot_longer(cols = ends_with("_Ratio"), 
+               names_to = "Characteristic", 
+               values_to = "Ratio") %>%
+  ggplot(aes(x = Year, y = Ratio, color = Characteristic)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Trends in Ad Characteristics Over Time",
+       x = "Year",
+       y = "Proportion of Ads")
+```
+
+##Columns
+
+- **Brand**: Brand featured in ad (str)
+- **Year**: Year ad aired (int)
+- **Funny**: Was ad humorous? (bool)
+- **Patriotic**: Was ad was patriotic? (bool)
+- **Celebrity**: Did ad feature celebrities? (bool)
+- **Animals**: Did ad feature animals? (bool)
+- **Sex_Appeal**: Did ad used sex appeal? (bool)
+
+##Conclusion
+
+- Investigate trends over time, i.e how the usage of humor or patriotism in ads changes by year.
+- Model the likability of an ad based on its humorous and patriotic elements, among others.
+- Integrate external data such as viewership statistics
+- Add social media engagement metrics
+- Include ad cost information
+- Conduct time series analysis of ad characteristics
+- Perform sentiment analysis on ad descriptions
+- Build predictive models for ad likability
+- Cross-reference findings with industry reports
+- Validate assumptions with additional data sources
+- Consider conducting statistical tests on observed patterns
+
+```{r save_data}
+write_csv(ads_cleaned, "superbowl_ads_cleaned.csv")
+print("Cleaned dataset saved as 'superbowl_ads_cleaned.csv'")
+```
