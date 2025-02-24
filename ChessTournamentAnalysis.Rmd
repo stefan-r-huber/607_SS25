@@ -1,0 +1,143 @@
+---
+title: 'Chess Tournament Analysis'
+author: 'Stefan Huber'
+output: html_document
+---
+
+## Objective
+
+Ingest chess tournament results .txt file and extract the followng player info:
+
+- Name
+- State
+- Total Number of Points
+- Pre-Rating
+- Average Pre Chess Rating of Opponents
+
+## Parsing
+
+```{r}
+tournament_data <- readLines("tournamentinfo.txt")
+
+head(tournament_data, 10)
+```
+
+## Processing
+
+```{r}
+names <- c()
+states <- c()
+points <- c()
+ratings <- c()
+opponents_list <- list()
+pair_numbers <- c()
+
+data_lines <- tournament_data[-(1:4)]
+
+line_number <- 1
+while (line_number <= length(data_lines)) {
+  if (grepl("^-+$", data_lines[line_number])) {
+    line_number <- line_number + 1
+    next
+  }
+  
+  player_line <- data_lines[line_number]
+  player_parts <- strsplit(player_line, "\\|")[[1]]
+  player_parts <- trimws(player_parts)
+  
+  pair_num <- as.numeric(gsub("[^0-9]", "", player_parts[1]))
+  pair_numbers <- c(pair_numbers, pair_num)
+  
+  names <- c(names, player_parts[2])
+  points <- c(points, player_parts[3])
+  
+  opponents <- c()
+  for (i in 4:10) {
+    if (i <= length(player_parts)) {
+      round_info <- player_parts[i]
+      if (nchar(round_info) > 1) {
+        opponent_num <- as.numeric(gsub("[^0-9]", "", round_info))
+        opponents <- c(opponents, opponent_num)
+      }
+    }
+  }
+  opponents_list[[length(opponents_list) + 1]] <- opponents
+  
+  line_number <- line_number + 1
+  if (line_number <= length(data_lines) && !grepl("^-+$", data_lines[line_number])) {
+    state_line <- data_lines[line_number]
+    state_parts <- strsplit(state_line, "\\|")[[1]]
+    state_parts <- trimws(state_parts)
+    
+    states <- c(states, state_parts[1])
+    
+    rating_text <- state_parts[2]
+    rating_match <- regexpr("R:\\s*([0-9]+)", rating_text)
+    if (rating_match > 0) {
+      rating_str <- regmatches(rating_text, rating_match)
+      rating <- as.numeric(gsub("[^0-9]", "", rating_str))
+      ratings <- c(ratings, rating)
+    } else {
+      ratings <- c(ratings, NA)
+    }
+  } else {
+    states <- c(states, NA)
+    ratings <- c(ratings, NA)
+  }
+  
+  line_number <- line_number + 1
+}
+
+rating_lookup <- data.frame(
+  PairNumber = pair_numbers,
+  PreRating = ratings
+)
+
+avg_opp_ratings <- c()
+for (i in 1:length(opponents_list)) {
+  player_opponents <- opponents_list[[i]]
+  opponent_ratings <- c()
+  
+  for (opp in player_opponents) {
+    idx <- which(rating_lookup$PairNumber == opp)
+    if (length(idx) > 0) {
+      opponent_ratings <- c(opponent_ratings, rating_lookup$PreRating[idx])
+    }
+  }
+  
+  if (length(opponent_ratings) > 0) {
+    avg_rating <- mean(opponent_ratings, na.rm = TRUE)
+    avg_opp_ratings <- c(avg_opp_ratings, round(avg_rating))
+  } else {
+    avg_opp_ratings <- c(avg_opp_ratings, NA)
+  }
+}
+
+chess_results <- data.frame(
+  Name = names,
+  State = states,
+  Points = points,
+  PreRating = ratings,
+  AvgOppRating = avg_opp_ratings
+)
+
+head(chess_results)
+
+write.csv(chess_results, "tournament_results.csv", row.names = FALSE)
+
+file.exists("tournament_results.csv")
+```
+
+## Findings
+
+Rendered .csv contains players and the relevant data points:
+
+I.e. Gary Hua (first player):
+- Name: GARY HUA
+- State: ON
+- Points: 6.0
+- PreRating: 1794
+- AvgOppRating: 1605
+
+Note: AvgOppRating calculated by averaging pre-tournament ratings for all of Gary's opponents.
+
