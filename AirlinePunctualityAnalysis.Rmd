@@ -1,0 +1,144 @@
+---
+title: "AirlinePunctualityAnalysis"
+author: "Stefan Huber"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)  
+library(dplyr)  
+library(ggplot2)  
+```
+
+### IMPORT
+```{r}
+airlines_data <- read.csv("airlines.csv") 
+ 
+# Display the first few rows  
+head(airlines_data)  
+```
+
+### TIDYING
+```{r}
+airlines_data$X <- ifelse(airlines_data$X == "", NA, airlines_data$X)
+airlines_data <- airlines_data %>% fill(X)
+
+# Rename columns for clarity
+colnames(airlines_data) <- c("Airline", "Status", "Los_Angeles", "Phoenix", "San_Diego", "San_Francisco", "Seattle")
+ 
+# Check the result  
+head(airlines_data)  
+```
+
+### TRANSFORM
+```{r}
+airlines_data$Status <- ifelse(airlines_data$Status == "", NA, airlines_data$Status)
+
+# Remove rows with NA in Status (these are likely header rows or empty rows)
+airlines_data <- airlines_data %>% filter(!is.na(Status))
+
+# Convert to long format
+airlines_long <- airlines_data %>%
+  pivot_longer(cols = c(Los_Angeles, Phoenix, San_Diego, San_Francisco, Seattle),
+               names_to = "City",
+               values_to = "Count")
+
+# Check the long format data
+print(head(airlines_long, 10))
+```
+
+### ANALYSIS
+```{r}
+overall_summary <- airlines_long %>%
+  group_by(Airline, Status) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = 'drop')
+
+overall_summary_wide <- overall_summary %>%
+  pivot_wider(names_from = Status, values_from = Total) %>%
+  mutate(
+    Total_Flights = ifelse(is.na(`on time`), 0, `on time`) + ifelse(is.na(delayed), 0, delayed),
+    pct_delayed = ifelse(Total_Flights > 0, 100 * ifelse(is.na(delayed), 0, delayed) / Total_Flights, 0)
+  )
+
+# Display overall summary
+print(overall_summary_wide)
+
+city_summary <- airlines_long %>%
+  group_by(Airline, City, Status) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = 'drop')
+
+city_summary_wide <- city_summary %>%
+  pivot_wider(names_from = Status, values_from = Total) %>%
+  mutate(
+    Total_Flights = ifelse(is.na(`on time`), 0, `on time`) + ifelse(is.na(delayed), 0, delayed),
+    pct_delayed = ifelse(Total_Flights > 0, 100 * ifelse(is.na(delayed), 0, delayed) / Total_Flights, 0)
+  )
+
+# Display city-level summary
+print(city_summary_wide)
+
+city_comparison <- city_summary_wide %>%
+  select(Airline, City, pct_delayed) %>%
+  rename(City_Pct_Delayed = pct_delayed)
+
+overall_comparison <- overall_summary_wide %>%
+  select(Airline, pct_delayed) %>%
+  rename(Overall_Pct_Delayed = pct_delayed)
+
+# Join the city and overall percentages
+comparison_table <- city_comparison %>%
+  left_join(overall_comparison, by = "Airline") %>%
+  mutate(Difference = City_Pct_Delayed - Overall_Pct_Delayed)
+
+# Display the comparison table
+print(comparison_table)
+
+# Calculate the average number of flights per city for each airline
+flight_distribution <- airlines_long %>%
+  group_by(Airline, City) %>%
+  summarise(Total_Flights = sum(Count, na.rm = TRUE), .groups = 'drop')
+
+# Display flight distribution
+print(flight_distribution)
+```
+
+### VISUALIZE
+```{r}
+ggplot(city_summary_wide, aes(x = City, y = pct_delayed, fill = Airline)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "City-wise Percentage of Delayed Flights by Airline",
+       x = "City",
+       y = "Percentage Delayed (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### TEXT
+
+### City-by-City:
+### Los_Angeles: ALASKA performs better with 3.34% lower delay rate
+### Phoenix: ALASKA performs better with 2.75% lower delay rate 
+### San_Diego: ALASKA performs better with 5.89% lower delay rate
+### San_Francisco: ALASKA performs better with 11.87% lower delay rate
+### Seattle: ALASKA performs better with 9.07% lower delay rate
+
+### ALASKA flight distribution: 
+### Seattle: 56.85% of flights (2146 flights)
+### San_Francisco: 16.03% of flights (605 flights)
+### Los_Angeles: 14.81% of flights (559 flights)
+### Phoenix: 6.17% of flights (233 flights)
+### San_Diego: 6.15% of flights (232 flights)
+
+### AM WEST flight distribution:
+### Phoenix: 72.73% of flights (5255 flights)
+### Los_Angeles: 11.22% of flights (811 flights)
+### San_Francisco: 6.21% of flights (449 flights)
+### San_Diego: 6.2% of flights (448 flights)
+### Seattle: 3.63% of flights (262 flights)
+
+### Simpson's Paradox:
+### ALASKA performs better in every individual city, but as we can see from
+### the data, AM WEST has better overall performance. 
+### AM WEST has 72.73% of its flights in Phoenix (relatively low delay rate)
+### ALASKA has most of its flights in Seattle (relatively higher delay rate)
