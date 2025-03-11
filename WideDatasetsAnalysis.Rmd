@@ -1,0 +1,159 @@
+---
+title: "Untitled"
+author: "Stefan Huber"
+output: html_document
+---
+
+
+### OBJECTIVE
+
+##  Reading and cleaning three CSV files from last week's Discussion:  
+## (1) NYC Gifted and Talented Grades 2018-19 (Sheet5)
+## (2) D&D Characters All
+## (3) Untidy Dataset _624
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+### (1) READING
+
+```{r}
+nyc_gt <- read.csv("NYC Gifted and Talented Grades 2018-19 - Sheet5.csv", stringsAsFactors = FALSE)  
+ 
+head(nyc_gt)  
+str(nyc_gt)
+```
+  
+### (1) TIDYING
+
+```{r}
+nyc_gt <- nyc_gt %>%  
+ rename(  
+   Timestamp = Timestamp,  
+   GradeLevel = Entering.Grade.Level,  
+   District = District,  
+   BirthMonth = Birth.Month,  
+   OLSAT_Verbal_Score = OLSAT.Verbal.Score,  
+   OLSAT_Verbal_Percentile = OLSAT.Verbal.Percentile,  
+   NNAT_NonVerbal_Raw = NNAT.Non.Verbal.Raw.Score,  
+   NNAT_NonVerbal_Percentile = NNAT.Non.Verbal.Percentile,  
+   Overall_Score = Overall.Score,  
+   School_Preferences = School.Preferences,  
+   Extra = X,  
+   School_Assigned = School.Assigned,  
+   Enroll = Will.you.enroll.there.  
+ )  
+
+nyc_gt_tidy <- nyc_gt %>% filter(School_Assigned != "")  
+ 
+head(nyc_gt_tidy)  
+```
+
+### (1) ANALYSIS
+
+```{r}
+summary(nyc_gt_tidy$OLSAT_Verbal_Score)  
+
+enroll_summary <- nyc_gt_tidy %>%  
+ group_by(Enroll) %>%  
+ summarise(count = n())  
+print(enroll_summary)  
+ 
+library(ggplot2)  
+ggplot(nyc_gt_tidy, aes(x = OLSAT_Verbal_Score)) +  
+ geom_histogram(binwidth = 1, fill = "blue", color = "black") +  
+ labs(title = "Distribution of OLSAT Verbal Scores", x = "Score", y = "Count")  
+```
+
+### (2) READING
+
+```{r}
+dnd_chars <- read.csv("dnd_chars_all.csv", stringsAsFactors = FALSE)  
+ 
+head(dnd_chars)  
+str(dnd_chars)  
+```
+
+### (2) TIDYING
+
+```{r}
+if("date" %in% names(dnd_chars)){  
+ dnd_chars$date <- as.Date(dnd_chars$date)  
+}  
+ 
+dnd_chars_tidy <- dnd_chars %>%  
+ mutate(  
+   Primary_Class = sapply(strsplit(as.character(class), '\\\\|'), `[`, 1),  
+   Secondary_Class = sapply(strsplit(as.character(class), '\\\\|'), function(x) ifelse(length(x)>1, x[2], NA))  
+ )  
+ 
+head(dnd_chars_tidy) 
+```
+
+### (2) ANALYSIS
+
+```{r}
+summary(dnd_chars_tidy$level)  
+ 
+class_counts <- dnd_chars_tidy %>% group_by(Primary_Class) %>% summarise(count = n())  
+print(class_counts)  
+ 
+ggplot(dnd_chars_tidy, aes(x = level)) +  
+ geom_histogram(binwidth = 1, fill = "green", color = "black") +  
+ labs(title = "Distribution of Character Levels", x = "Level", y = "Count")  
+```
+
+### (3) READING
+
+```{r}
+untidy <- read.csv("Untidydataset _624.csv", stringsAsFactors = FALSE)  
+ 
+head(untidy)  
+str(untidy) 
+```
+
+### (3) TIDYING
+
+```{r}
+untidy <- untidy %>%   
+ rename_all(~ make.names(.))  
+ 
+ 
+if(all(c('measurement1','measurement2','measurement3') %in% names(untidy))){  
+ untidy_tidy <- untidy %>%   
+   pivot_longer(cols = c(measurement1, measurement2, measurement3),   
+                names_to = "Measurement", values_to = "Value")  
+} else {  
+ untidy_tidy <- untidy # if no such columns exist, use the data as is.  
+}  
+ 
+head(untidy_tidy)  
+```
+
+### (3) ANALYSIS
+
+```{r}
+summary(untidy_tidy)  
+ 
+if("Value" %in% names(untidy_tidy)){  
+ ggplot(untidy_tidy, aes(x = Value)) +  
+   geom_histogram(fill = "purple", color = "black") +  
+   labs(title = "Distribution of Values", x = "Value", y = "Count")  
+}  
+```
+
+### CONCLUSION
+
+## (1) NYC Gifted and Talented Data
+## Removed rows with missing school assignments
+## Analyzed test score distributions
+
+## (2) D&D Characters Data
+## Converted dates
+## Split combined class data
+## Analyzed character levels and class distributions
+
+## (3) Untidy Dataset _624
+## Renamed columns and potentially gathered measurement columnns
+## Summarized dataset with descriptive statistics and a plot
