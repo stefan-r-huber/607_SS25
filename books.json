@@ -1,0 +1,25 @@
+{
+  "books": [
+    {
+      "title": "Cosmos",
+      "authors": "Carl Sagan",
+      "year": 1980,
+      "pages": 384,
+      "rating": 4.8
+    },
+    {
+      "title": "Astrophysics for People in a Hurry",
+      "authors": "Neil deGrasse Tyson",
+      "year": 2017,
+      "pages": 224,
+      "rating": 4.5
+    },
+    {
+      "title": "Space Atlas: Mapping the Universe and Beyond",
+      "authors": "James Trefil, National Geographic",
+      "year": 2019,
+      "pages": 352,
+      "rating": 4.7
+    }
+  ]
+}

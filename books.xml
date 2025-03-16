@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+  <book>
+    <title>Cosmos</title>
+    <authors>Carl Sagan</authors>
+    <year>1980</year>
+    <pages>384</pages>
+    <rating>4.8</rating>
+  </book>
+  <book>
+    <title>Astrophysics for People in a Hurry</title>
+    <authors>Neil deGrasse Tyson</authors>
+    <year>2017</year>
+    <pages>224</pages>
+    <rating>4.5</rating>
+  </book>
+  <book>
+    <title>Space Atlas: Mapping the Universe and Beyond</title>
+    <authors>James Trefil, National Geographic</authors>
+    <year>2019</year>
+    <pages>352</pages>
+    <rating>4.7</rating>
+  </book>
+</books>

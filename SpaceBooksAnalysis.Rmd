@@ -1,0 +1,138 @@
+---
+title: "Space Books Analysis"
+author: "Stefan Huber"
+date: "March 16, 2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objective
+
+Load book data from three different file formats: HTML, XML, and JSON.
+
+### Loading - HTML
+
+```{r load_html}
+if (!require("rvest")) {
+  install.packages("rvest", repos = "https://cran.rstudio.com/", dependencies = FALSE)
+}
+library(rvest)
+
+html_data <- read_html("books.html")
+
+html_df <- html_data %>%
+  html_nodes("table") %>%
+  html_table(fill = TRUE) %>%
+  .[[1]]
+
+print(html_df)
+```
+
+### Loading - XML
+
+```{r load_xml}
+if (!require("xml2")) {
+  install.packages("xml2", repos = "https://cran.rstudio.com/", dependencies = FALSE)
+}
+library(xml2)
+
+xml_data <- read_xml("books.xml")
+
+book_nodes <- xml_find_all(xml_data, "//book")
+
+titles <- character()
+authors_list <- character()
+years <- numeric()
+pages <- numeric()
+ratings <- numeric()
+
+for (book in book_nodes) {
+  titles <- c(titles, xml_text(xml_find_first(book, ".//title")))
+  authors_list <- c(authors_list, xml_text(xml_find_first(book, ".//authors")))
+  years <- c(years, as.numeric(xml_text(xml_find_first(book, ".//year"))))
+  pages <- c(pages, as.numeric(xml_text(xml_find_first(book, ".//pages"))))
+  ratings <- c(ratings, as.numeric(xml_text(xml_find_first(book, ".//rating"))))
+}
+
+xml_df <- data.frame(
+  Title = titles,
+  Authors = authors_list,
+  Year = years,
+  Pages = pages,
+  Rating = ratings
+)
+
+print(xml_df)
+```
+
+### Loading - JSON
+
+```{r load_json}
+if (!require("jsonlite")) {
+  install.packages("jsonlite", repos = "https://cran.rstudio.com/", dependencies = FALSE)
+}
+library(jsonlite)
+
+json_data <- fromJSON("books.json")
+
+json_df <- json_data$books
+
+print(json_df)
+```
+
+### Analysis
+
+```{r compare}
+cat("Column names comparison:
+")
+cat("HTML columns: ", paste(colnames(html_df), collapse = ", "), "
+")
+cat("XML columns: ", paste(colnames(xml_df), collapse = ", "), "
+")
+cat("JSON columns: ", paste(colnames(json_df), collapse = ", "), "
+
+")
+
+cat("Dimensions comparison:
+")
+cat("HTML dimensions: ", paste(dim(html_df), collapse = " x "), "
+")
+cat("XML dimensions: ", paste(dim(xml_df), collapse = " x "), "
+")
+cat("JSON dimensions: ", paste(dim(json_df), collapse = " x "), "
+
+")
+
+cat("Data types comparison:
+")
+cat("HTML data types:
+")
+print(sapply(html_df, class))
+cat("XML data types:
+")
+print(sapply(xml_df, class))
+cat("JSON data types:
+")
+print(sapply(json_df, class))
+
+data_html <- as.data.frame(lapply(html_df, as.character), stringsAsFactors = FALSE)
+data_xml <- as.data.frame(lapply(xml_df, as.character), stringsAsFactors = FALSE)
+data_json <- as.data.frame(lapply(json_df, as.character), stringsAsFactors = FALSE)
+
+cat("
+Are the data frames identical in content?
+")
+identical_html_xml <- identical(data_html, data_xml)
+identical_html_json <- identical(data_html, data_json)
+identical_xml_json <- identical(data_xml, data_json)
+
+cat("HTML and XML identical: ", identical_html_xml, "
+")
+cat("HTML and JSON identical: ", identical_html_json, "
+")
+cat("XML and JSON identical: ", identical_xml_json, "
+")
+```
