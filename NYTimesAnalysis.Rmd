@@ -1,0 +1,119 @@
+# Create an R Markdown file
+title: "New York Times Analysis"
+author: "Stefan Huber"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r packages, message=FALSE, warning=FALSE}
+if (!requireNamespace("httr", quietly = TRUE)) {
+  install.packages("httr", repos="https://cran.rstudio.com/", dependencies = FALSE)
+}
+if (!requireNamespace("jsonlite", quietly = TRUE)) {
+  install.packages("jsonlite", repos="https://cran.rstudio.com/", dependencies = FALSE)
+}
+
+library(httr)
+library(jsonlite)
+```
+
+## Set-up
+
+```{r api_setup}
+api_key <- "E83YDkBIafML6q7DA59IP5IjIpavp230"
+
+section <- "home"
+
+url <- paste0("https://api.nytimes.com/svc/topstories/v2/", section, ".json?api-key=", api_key)
+```
+
+## Requesting API
+
+```{r api_request}
+response <- httr::GET(url)
+
+if (httr::status_code(response) != 200) {
+  stop(paste0("Failed to retrieve data. HTTP status: ", httr::status_code(response)))
+} else {
+  print(paste0("Request successful! Status code: ", httr::status_code(response)))
+}
+```
+
+## Parsing
+
+Next, we\'ll parse the JSON response and extract the articles:
+
+```{r parse_json}
+data_list <- fromJSON(rawToChar(response$content))
+
+articles <- data_list$results
+
+str(articles, max.level = 1)
+```
+
+## Data Frame
+
+```{r create_dataframe}
+articles_df <- as.data.frame(articles, stringsAsFactors = FALSE)
+
+colnames(articles_df)
+```
+
+## Exploration
+
+```{r simplified_df}
+simple_df <- articles_df[, c("section", "title", "abstract", "byline", "published_date", "url")]
+
+simple_df$published_date <- format(as.POSIXct(simple_df$published_date), "%B %d, %Y")
+
+head(simple_df)
+```
+
+## Images
+
+```{r extract_images}
+image_df <- data.frame(
+  title = articles_df$title,
+  image_url = sapply(articles_df$multimedia, function(x) {
+    if(length(x$url) > 0) {
+      return(x$url[1])  # Get the first image URL
+    } else {
+      return(NA)
+    }
+  }),
+  stringsAsFactors = FALSE
+)
+
+head(image_df)
+```
+
+## Analysis
+
+```{r analyze_sections}
+section_counts <- table(articles_df$section)
+section_counts
+
+barplot(section_counts, 
+        main = "Number of Articles by Section",
+        xlab = "Section",
+        ylab = "Count",
+        col = "steelblue",
+        las = 2)
+```
+
+## Workflow
+
+- Connect to New York Times Top Stories API
+- Retrieve JSON data using `httr`
+- Parse JSON response using `jsonlite`
+- Transform data into an R data frame
+- Analyze key information from articles
