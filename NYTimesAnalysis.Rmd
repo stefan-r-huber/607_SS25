@@ -1,11 +1,10 @@
-# Create an R Markdown file
+---
 title: "New York Times Analysis"
 author: "Stefan Huber"
 output: 
   html_document:
     toc: true
     toc_float: true
-    theme: cerulean
 ---
 
 ```{r setup, include=FALSE}
