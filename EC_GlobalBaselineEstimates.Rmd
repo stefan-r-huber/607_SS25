@@ -1,0 +1,75 @@
+---
+title: "EC_GlobalBaselineEstimates"
+author: "Stefan Huber"
+output: html_document
+---
+
+## LOADING
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+```
+
+## RESHAPING
+
+```{r data-reshaping}
+ratings_wide <- read_excel("MovieRatings.xlsx", sheet = "MovieRatings")
+
+ratings_long <- ratings_wide %>%
+  pivot_longer(
+    cols = -Critic,
+    names_to = "Movie",
+    values_to = "Rating",
+    values_drop_na = TRUE
+  )
+
+ratings_long <- ratings_long %>%
+  mutate(Rating = as.numeric(Rating))
+```
+
+## CALCULATING
+
+```{r data-calculating}
+global_avg <- mean(ratings_long$Rating, na.rm = TRUE)
+cat("Global average rating:", global_avg, "\
+")
+
+movie_bias <- ratings_long %>%
+  group_by(Movie) %>%
+  summarize(b_i = mean(Rating, na.rm = TRUE) - global_avg)
+print("Movie biases:")
+print(movie_bias)
+
+user_bias <- ratings_long %>%
+  group_by(Critic) %>%
+  summarize(b_u = mean(Rating, na.rm = TRUE) - global_avg)
+print("User biases:")
+print(user_bias)
+
+all_users <- unique(ratings_long$Critic)
+all_movies <- unique(ratings_long$Movie)
+all_combinations <- expand.grid(Critic = all_users, Movie = all_movies, stringsAsFactors = FALSE)
+
+all_rec <- all_combinations %>%
+  left_join(ratings_long %>% select(Critic, Movie, Rating), by = c("Critic", "Movie")) %>%
+  left_join(user_bias, by = "Critic") %>%
+  left_join(movie_bias, by = "Movie") %>%
+  mutate(EstimatedRating = global_avg + b_u + b_i)
+```
+
+## RECOMMENDING
+
+```{r data-recommending}
+recommendations <- all_rec %>%
+  filter(is.na(Rating)) %>%
+  group_by(Critic) %>%
+  arrange(desc(EstimatedRating)) %>%
+  slice_head(n = 3)
+
+print("Top 3 movie recommendations for each critic:")
+print(recommendations)
+```
