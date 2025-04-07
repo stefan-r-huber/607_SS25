@@ -1,0 +1,89 @@
+---
+title: "Lexicon Sentiment Analysis"
+author: "Stefan Huber"
+output: html_document
+---
+
+## LOADING
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidytext)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(tidyr)
+```
+
+## BASE
+
+```{r base-code}
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", 
+                                           ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+
+# Look at the data
+print(head(tidy_books))
+```
+
+## SCRAPING
+
+```{r}
+afinn <- tryCatch({  
+  get_sentiments("afinn")  
+}, error = function(e) {  
+  message("Error in loading the AFINN lexicon: ", e$message)  
+  NULL  
+})  
+  
+if (!is.null(afinn)) {  
+  print("AFINN lexicon (first 6 rows):")  
+  head(afinn)  
+} else {  
+  message("AFINN lexicon not available.")  
+}  
+```
+## ANALYZING
+
+```{r data-analysis}
+tidy_tweets <- tibble(  
+  id = 1:6,  
+  text = c(  
+    "I love the new movie! Absolutely fantastic and thrilling.",  
+    "The weather is gloomy. I feel so depressed and sad.",  
+    "What an amazing day; everything is going great.",  
+    "Totally disappointed by the service. Would not recommend.",  
+    "Feeling happy and blessed today.",  
+    "This is the worst experience ever. Completely awful!"  
+  )  
+) %>%  
+  unnest_tokens(word, text)  
+  
+bing <- get_sentiments("bing")  
+head(bing)  
+
+tweet_sentiment <- tidy_tweets %>%  
+  inner_join(bing, by = "word") %>%  
+  count(id, sentiment) %>%  
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%  
+  mutate(net_sentiment = positive - negative)  
+
+print(tweet_sentiment)  
+```
+
+## VISUALIZING
+
+```{r data-visualization}
+ggplot(tweet_sentiment, aes(x = factor(id), y = net_sentiment, fill = net_sentiment > 0)) +  
+  geom_bar(stat = "identity") +  
+  labs(title = "Net Sentiment of Tweets (Bing Lexicon)",  
+       x = "Tweet ID", y = "Net Sentiment") +  
+  scale_fill_manual(values = c("red", "green"), guide = FALSE)  
+```
