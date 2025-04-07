@@ -1,0 +1,130 @@
+---
+title: "EC_ConfusionMatrices"
+author: "Stefan Huber"
+output: html_document
+---
+
+## LOADING
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(dplyr)
+
+download.file("https://raw.githubusercontent.com/acatlin/data/master/penguin_predictions.csv", 
+              destfile = "penguin_predictions.csv")
+
+file.exists("penguin_predictions.csv")
+
+download.file("https://raw.githubusercontent.com/acatlin/data/master/Performance%20Metrics%20for%20Classification%20problems%20in%20Machine%20Learning.pdf", 
+              destfile = "classification_metrics.pdf")
+
+file.exists("classification_metrics.pdf")
+```
+
+## Q1
+
+```{r-question-one}
+df <- read.csv('penguin_predictions.csv')
+
+freq_table <- table(df$sex)
+print(freq_table)
+
+majority_count <- max(freq_table)
+total_count <- sum(freq_table)
+majority_proportion <- majority_count / total_count
+null_error_rate <- 1 - majority_proportion
+
+print(paste('Null Error Rate:', round(null_error_rate, 4)))
+
+ggplot(df, aes(x = sex)) + 
+  geom_bar(fill = 'steelblue') + 
+  labs(title = 'Distribution of Actual Class (sex)', x = 'Actual Class (sex)', y = 'Count') + 
+  theme_minimal()
+```
+
+## Q2
+
+```{r-question-two}
+df <- read.csv('penguin_predictions.csv')
+
+compute_confusion <- function(data, threshold) {
+  data <- data %>% mutate(
+    pred = ifelse(.pred_female >= threshold, 'female', 'male')
+  )
+  
+  TP <- sum(data$pred == 'female' & data$sex == 'female')
+  FP <- sum(data$pred == 'female' & data$sex == 'male')
+  TN <- sum(data$pred == 'male' & data$sex == 'male')
+  FN <- sum(data$pred == 'male' & data$sex == 'female')
+  c
+  cm <- matrix(c(TP, FP, FN, TN), nrow = 2, byrow = TRUE)
+  rownames(cm) <- c('Predicted: female', 'Predicted: male')
+  colnames(cm) <- c('Actual: female', 'Actual: male')
+  return(cm)
+}
+
+thresholds <- c(0.2, 0.5, 0.8)
+
+for (th in thresholds){
+  cat(paste0('-----------------------\
+Threshold: ', th, '\
+'))
+  cm <- compute_confusion(df, th)
+  print(cm)
+  cat('\
+')
+}
+
+for (th in thresholds){
+  data <- df %>% mutate(pred = ifelse(.pred_female >= th, 'female', 'male'))
+  TP <- sum(data$pred == 'female' & data$sex == 'female')
+  FP <- sum(data$pred == 'female' & data$sex == 'male')
+  TN <- sum(data$pred == 'male' & data$sex == 'male')
+  FN <- sum(data$pred == 'male' & data$sex == 'female')
+  cat(paste('Threshold:', th, '\
+'))
+  cat(paste('TP:', TP, 'FP:', FP, 'TN:', TN, 'FN:', FN, '\
+\
+'))
+}
+```
+## Q3
+
+```{r-question-three}
+df <- read.csv('penguin_predictions.csv')
+
+compute_metrics <- function(data, threshold) {
+  data <- data %>% mutate(pred = ifelse(.pred_female >= threshold, 'female', 'male'))
+  TP <- sum(data$pred == 'female' & data$sex == 'female')
+  FP <- sum(data$pred == 'female' & data$sex == 'male')
+  TN <- sum(data$pred == 'male' & data$sex == 'male')
+  FN <- sum(data$pred == 'male' & data$sex == 'female')
+  
+  accuracy <- (TP + TN) / (TP + TN + FP + FN)
+  precision <- ifelse((TP + FP) > 0, TP / (TP + FP), NA)
+  recall <- ifelse((TP + FN) > 0, TP / (TP + FN), NA)
+  f1 <- ifelse((precision + recall) > 0, 2 * (precision * recall) / (precision + recall), NA)
+  
+  return(data.frame(threshold = threshold, accuracy = round(accuracy,4), precision = round(precision,4), recall = round(recall,4), F1 = round(f1,4)))
+}
+
+thresholds <- c(0.2, 0.5, 0.8)
+metrics_list <- lapply(thresholds, function(th) compute_metrics(df, th))
+metrics_df <- do.call(rbind, metrics_list)
+
+print(metrics_df)
+```
+
+## Q4
+
+Example Use Cases:
+
+- 0.2 probability threshold:
+
+In scenarios where it is crucial to catch as many positive cases as possible (like  high recall) even if it means a higher false alarm rate, a lower threshold might be preferable.
+
+- 0.8 probability threshold:
+
+When the cost of a false positive is very high or when you need to act only on predictions in which the model is very confident, a high threshold is preferred.
