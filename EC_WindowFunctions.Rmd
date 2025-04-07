@@ -1,0 +1,71 @@
+---
+title: "EC_WindowFunctions"
+author: "Stefan Huber"
+output: html_document
+---
+
+## LOADING
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)  
+library(lubridate)
+library(ggplot2)
+library(zoo)
+```
+
+## GENERATING
+
+```{r data-generating}
+set.seed(123)
+ 
+dates <- seq(as.Date("2022-01-01"), as.Date("2022-02-28"), by = "day")  
+
+data <- expand.grid(date = dates, stock = c("Stock_A", "Stock_B")) %>%  
+  arrange(stock, date) %>%  
+  mutate(close = round(runif(n(), 100, 200), 2))
+
+head(data)  
+```
+
+## YTD
+
+```{r data-ytd}
+data_ytd <- data %>%  
+  group_by(stock) %>%  
+  arrange(date) %>%  
+  mutate(ytd_avg = cummean(close)) %>%  
+  ungroup()  
+
+head(data_ytd, 10)  
+```
+
+## SIX-DAY
+
+```{r data-avg}
+data_results <- data_ytd %>%  
+  group_by(stock) %>%  
+  arrange(date) %>%  
+  mutate(moving_avg_6d = zoo::rollapply(close,   
+                                      width = 6,   
+                                      FUN = mean,   
+                                      align = "right",   
+                                      fill = NA)) %>%  
+  ungroup()  
+
+head(data_results, 10)  
+```
+
+## VISUALIZING
+
+```{r data-visualization}
+ggplot(data_results %>% filter(stock == "Stock_A"), aes(x = date)) +  
+  geom_line(aes(y = close, color = "Daily Close")) +  
+  geom_line(aes(y = ytd_avg, color = "YTD Average")) +  
+  geom_line(aes(y = moving_avg_6d, color = "6-Day Moving Avg")) +  
+  labs(title = "Stock A - Price and Moving Averages",  
+       y = "Price",  
+       color = "Metric") +  
+  theme_minimal()  
+```
