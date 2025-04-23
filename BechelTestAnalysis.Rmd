@@ -1,0 +1,100 @@
+---
+title: "Bechel Test Analysis"
+author: "Stefan Huber"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(fivethirtyeight)
+
+bechdel_df <- bechdel
+```
+
+### OBJECTIVE
+
+Exploring how to use TidyVerse packages to analyze the Bechdel test dataset (simple measure of female representation) from FiveThirtyEight.
+
+### CLEAN
+
+```{r data_prep}
+bechdel_clean <- bechdel_df %>%
+  select(year, title, binary, budget_2013, domgross_2013) %>%
+  mutate(
+    pass = ifelse(binary == "PASS", "Pass", "Fail"),
+    roi = (domgross_2013 - budget_2013) / budget_2013
+  )
+
+head(bechdel_clean)
+```
+
+### ANALYZE
+
+```{r pass_rates}
+yearly_summary <- bechdel_clean %>%
+  group_by(year) %>%
+  summarize(
+    total_movies = n(),
+    pass_rate = mean(pass == "Pass"),
+    avg_roi = mean(roi, na.rm = TRUE)
+  )
+
+ggplot(yearly_summary, aes(x = year, y = pass_rate)) +
+  geom_line(color = "blue", linewidth = 1) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  labs(
+    title = "Movies Passing the Bechdel Test (1970-2013)",
+    subtitle = "Percentage of movies that pass the Bechdel test has increased over time",
+    x = "Year",
+    y = "Pass Rate",
+    caption = "Data source: FiveThirtyEight"
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent)
+```
+
+### COMPARE
+
+```{r budget_analysis}
+bechdel_budget <- bechdel_df %>%
+  filter(!is.na(budget_2013)) %>%
+  mutate(pass = ifelse(binary == "PASS", "Pass", "Fail")) %>%
+  group_by(pass) %>%
+  summarize(
+    avg_budget = mean(budget_2013, na.rm = TRUE),
+    median_budget = median(budget_2013, na.rm = TRUE),
+    count = n()
+  )
+
+print(bechdel_budget)
+```
+
+### ROI
+
+```{r roi_analysis}
+ggplot(yearly_summary, aes(x = year)) +
+  geom_line(aes(y = pass_rate, color = "Pass Rate"), linewidth = 1) +
+  geom_line(aes(y = avg_roi, color = "Average ROI"), linewidth = 1) +
+  scale_color_manual(values = c("Pass Rate" = "blue", "Average ROI" = "red")) +
+  labs(
+    title = "Bechdel Test Pass Rate and ROI Over Time",
+    x = "Year",
+    y = "Rate",
+    color = "Metric"
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent)
+```
+
+### METHODS
+
+- Cleaned and prepared data using dplyr
+- Created visualizations with ggplot2
+- Performed group-wise calculations
+- Compared different metrics over time
+
+### FINDINGS
+
+- Pass rate for the Bechdel test has generally increased over time.
+- Movies that fail the test tend to have higher budgets.
