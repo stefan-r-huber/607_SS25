@@ -1,0 +1,105 @@
+---
+title: "Voter Registration Tidyverse Sample - Extension"
+author: "Stefan Huber"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+## Comparing voter registrations by year
+
+Source: https://github.com/fivethirtyeight/data/blob/master/voter-registration/new-voter-registrations.csv
+
+I found a relatively simple dataset to plot using ggplot2
+
+```{r}
+
+voters <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/refs/heads/master/voter-registration/new-voter-registrations.csv") 
+
+voters_df <- voters %>%
+  group_by(Jurisdiction, Year) %>%
+  summarize(total_voters = sum(New.registered.voters, na.rm = TRUE)) 
+
+```
+
+## Comparing total registration per state by year 
+
+```{r}
+  ggplot(voters_df, aes(x = Jurisdiction, y = total_voters, fill = factor(Year))) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Total Voters by State and Year",
+    x = "State",
+    y = "Total Voters",
+    fill = "Year") +
+  theme_minimal()
+```
+
+
+```{r extend-visage}
+annual_totals <- voters %>%
+  group_by(Year) %>%
+  summarize(total_registrations = sum(New.registered.voters, na.rm = TRUE))
+
+print(annual_totals)
+
+p_annual <- ggplot(annual_totals, aes(x = as.factor(Year), y = total_registrations, fill = as.factor(Year))) +
+  geom_col() +
+  labs(
+    title = "Total New Voter Registrations by Year",
+    x = "Year",
+    y = "Total New Registrations",
+    fill = "Year"
+  ) +
+  theme_minimal()
+
+print(p_annual)
+
+peak_months <- voters %>%
+  group_by(Year, Month) %>%
+  summarize(monthly_total = sum(New.registered.voters, na.rm = TRUE)) %>%
+  group_by(Year) %>%
+  filter(monthly_total == max(monthly_total))
+
+print(peak_months)
+
+p_peak <- ggplot(peak_months, aes(x = as.factor(Year), y = monthly_total, fill = Month)) +
+  geom_col() +
+  labs(
+    title = "Peak Registration Month by Year",
+    x = "Year",
+    y = "Registrations in Peak Month",
+    fill = "Month"
+  ) +
+  theme_minimal()
+
+print(p_peak)
+
+state_year_avg <- voters %>%
+  group_by(Jurisdiction, Year) %>%
+  summarize(avg_registrations = mean(New.registered.voters, na.rm = TRUE))
+
+print(head(state_year_avg))
+
+most_recent_year <- max(voters$Year)
+recent_avg <- state_year_avg %>% filter(Year == most_recent_year)
+
+p_recent_avg <- ggplot(recent_avg, aes(x = reorder(Jurisdiction, avg_registrations), y = avg_registrations)) +
+  geom_col(fill = "darkgreen") +
+  coord_flip() +
+  labs(
+    title = paste("Average New Registrations per State in", most_recent_year),
+    x = "State",
+    y = "Average New Registrations"
+  ) +
+  theme_minimal()
+
+print(p_recent_avg)
+```
